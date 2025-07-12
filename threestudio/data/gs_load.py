@@ -225,16 +225,16 @@ class GSLoadIterableDataset(IterableDataset, Updateable):
         # self.n2n_view_index = [index for index in self.n2n_view_index if index not in remove_indices]
 
         # 多个要增加的区间
-        add_indices = (
-            list(range(0, 14)) +
-            list(range(44, 53)) +
-            list(range(85, 95))
-        )
+        # add_indices = (
+        #     list(range(0, 14)) +
+        #     list(range(44, 53)) +
+        #     list(range(85, 95))
+        # )
 
         # 添加到现有索引中
-        self.n2n_view_index.extend(add_indices)
+        # self.n2n_view_index.extend(add_indices)
 
-        # 去重并排序（可选，但推荐）
+        # 去重并排序
         # self.n2n_view_index = sorted(set(self.n2n_view_index))
 
 
@@ -366,12 +366,12 @@ class GS_load(pl.LightningDataModule):
 
         self.use_original_resolution = True
         if self.use_original_resolution:
-                        # bear
+            # bear
+            # self.cfg.height =  512
+            # self.cfg.width = 692
+            # face
             self.cfg.height =  512
-            self.cfg.width = 692
-        #     # face
-        #     self.cfg.height =  512
-        #     self.cfg.width = 768
+            self.cfg.width = 768
             # person
             # self.cfg.height =  819
             # self.cfg.width = 512

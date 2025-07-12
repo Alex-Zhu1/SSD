@@ -35,75 +35,53 @@ https://github.com/buaacyw/GaussianEditor/assets/52091468/18dd3ef2-4066-428a-918
 - [Installation](#installation)
 - [Tips](#tips)
 - [Command Line](#command-line)
-- [TODO](#todo)
 - [Acknowledgement](#acknowledgement)
 
 ## Installation
-Our environment has been tested on Ubuntu 22, CUDA 11.8 with 3090, A5000 and A6000.
-1. Clone our repo and create conda environment
+Our environment was tested on Ubuntu 22, CUDA 11.7 with 3090.
 ```
-git clone https://github.com/buaacyw/GaussianEditor.git && cd GaussianEditor
+conda create -n ssd python=3.8 -y 
+conda activate ssd
 
-# (Option one) Install by conda
-conda env create -f environment.yaml
+conda install -c "nvidia/label/cuda-11.7.0" cuda-nvcc
+conda install cuda-toolkit==11.7
+pip install ninja
+pip install cmake
+conda install pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.7 -c pytorch -c nvidia
 
-# (Option two) You can also install by pip
-# CUDA version 11.7
-pip install torch==2.0.1+cu117 torchvision==0.15.2+cu117 --extra-index-url https://download.pytorch.org/whl/cu117
-# CUDA version 11.8
-pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-pip install -r requirements.txt
+# Gaussian Splatting
+cd gaussiansplatting
+pip install submodules/diff-gaussian-rasterization
+pip install submodules/simple-knn
 
-# (Option three) If the below two options fail, please try this:
-# For CUDA 11.8
-bash install.sh
-```
-
-2. (Optional) Install our forked viser [Required by WebUI)
-```
-mkdir extern && cd extern
-git clone https://github.com/heheyas/viser 
-pip install -e viser
+# Required packages
 cd ..
+pip install tqdm
+pip install plyfile
+pip install mediapipe
+pip install diffusers==0.27.2
+pip install -r requirements_all.txt
 ```
-
-3. (Optional) Download Wonder3D checkpoints [Required by <b>Add</b>]
-```bash
-sh download_wonder3d.sh
-```
+We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.yaml) file to help you verify.
 
 
 ## Tips
 
-The demand for 3D editing is very diverse. For instance, if you only want to change textures and materials or significantly modify geometry, it's clear that a one-size-fits-all hyperparameter won't work. Therefore, we cannot provide a default hyperparameter setting that works effectively in all scenarios. Therefore, if your results do not meet expectations, please refer to our [hyperparameter tuning](https://github.com/buaacyw/GaussianEditor/blob/master/docs/hyperparameter.md) document. In it, we detail the function of each hyperparameter and advise on which parameters to adjust when you encounter specific issues. 
+1. If the default resolution of **512×512** is not suitable, you can modify the [line here](https://github.com/Alex-Zhu1/SSD/blob/3e1e01d773664c646e7194d3935b56fab3407049/threestudio/data/gs_load.py#L367) by setting `self.use_original_resolution` to `True`, and adjust the resolution accordingly. For example, if the original `(height, width)` is `(729, 985)`, you may change it to something like `(512, 692)`.
+
+2. Some prompts may not work well with **SD2.1**. In such cases, you can try using **IP2P** instead.
+
+3. We provide the evaluation metric code.
 
 ## Command Line
-We also provide a command line version of GaussianEditor. Like WebUI, you need to specify your path to the pretrained Gaussians and COLMAP outputs as mentioned in [here](https://github.com/buaacyw/GaussianEditor/blob/1fa96851c132258e0547ba73372f37cff83c92c3/docs/webui.md?plain=1#L20).
-Please check scripts in `sciprt` folder. Simply change `data.source` to your COLMAP output directory and 
-`system.gs_source` to your pretrained Gaussians and run our demo scripts.
 
 
-## TODO
-
-The repo is still being under construction, thanks for your patience. 
-- [x] Tutorial for hyperparameter tuning.
-- [x] Step-by-step tutorial for WebUI .
-- [x] Realised WebUI beta version and GaussianEditor.
-
-<!-- ## FAQ
-
-- Bad result for <b>Edit</b>. We are using [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix) to generate edited 2D images as editing guidance.
-Unfortunately, InstructPix2Pix only works on limited prompts, please first try [here](https://huggingface.co/spaces/timbrooks/instruct-pix2pix) if you are not sure whether your text prompts work.
-- Bad result for <b>Add</b>. We use [ControlNet-Inpainting](https://github.com/lllyasviel/ControlNet) to first generate 2D inpainting and then transfer it into 3D. Also it doesn't work for bad prompts. Please try to enlarge your inpainting mask and try more seeds.
-- Bad result for <b>Segmentation</b>. Try scale the segmentation threshold, which changes the confidence score for segmentation.
-- Missing weights for DPT. Please read this [issue](https://github.com/buaacyw/GaussianEditor/issues/10) -->
 
 ## Acknowledgement
 
-Our code is based on these wonderful repos:
+Most of our code is adapted from the excellent works of [GaussianEditor](https://github.com/buaacyw/GaussianEditor) and [Threestudio](https://github.com/threestudio-project/threestudio). We sincerely thank the authors for their great contributions.
 
-* [Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting)
-* [Threestudio](https://github.com/threestudio-project/threestudio)
-* [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix)
-* [GaussianEditor](https://github.com/buaacyw/GaussianEditor)
+We also refer to the following projects:
 
+- [Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting)  
+- [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix)

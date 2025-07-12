@@ -49,7 +49,7 @@ system:
   scaling_lr_scaler: 1
   rotation_lr_scaler: 1
 
-  second_guidance_type: "stable-diffusion-dc-guidance"
+  second_guidance_type: "stable-diffusion-ssd-guidance"
   second_guidance:
     min_step_percent: 0.02
     max_step_percent: 0.98

@@ -5,7 +5,7 @@ import math
 import numpy as np
 import torch
 import torch.nn.functional as F
-from diffusers import DDIMScheduler, StableDiffusionInstructPix2PixPipeline, StableDiffusionPipeline, DDPMScheduler
+from diffusers import DDIMScheduler, StableDiffusionInstructPix2PixPipeline
 from diffusers.utils.import_utils import is_xformers_available
 from tqdm import tqdm
 
@@ -17,20 +17,20 @@ from threestudio.utils.typing import *
 from threestudio.utils.free_lunch import register_free_upblock2d_in, register_free_crossattn_upblock2d_in
 
 
-@threestudio.register("stable-diffusion-dc-guidance")
-class StableDiffusionDCGuidance(BaseObject):
+@threestudio.register("stable-diffusion-instructpix2pix-ssd-guidance")
+class InstructPix2PixDCGuidance(BaseObject):
     @dataclass
     class Config(BaseObject.Config):
         cache_dir: Optional[str] = None
-        ddim_scheduler_name_or_path: str = "stable-diffusion-v1-5/stable-diffusion-v1-5"
-        ip2p_name_or_path: str = "stable-diffusion-v1-5/stable-diffusion-v1-5" 
+        ddim_scheduler_name_or_path: str = "CompVis/stable-diffusion-v1-4"
+        ip2p_name_or_path: str = "timbrooks/instruct-pix2pix"
 
         enable_memory_efficient_attention: bool = False
         enable_sequential_cpu_offload: bool = False
         enable_attention_slicing: bool = False
         enable_channels_last_format: bool = False
         guidance_scale: float = 7.5
-        condition_scale: float = 1.5
+        condition_scale: float = 1.5  # 他们使用1.5是为了dds的匹配，我们不需要
         grad_clip: Optional[
             Any
         ] = None  # field(default_factory=lambda: [0, 2.0, 8.0, 1000])
@@ -61,7 +61,7 @@ class StableDiffusionDCGuidance(BaseObject):
     cfg: Config
 
     def configure(self) -> None:
-        threestudio.info(f"Loading Stable Diffusion ...")
+        threestudio.info(f"Loading InstructPix2Pix ...")
 
         self.weights_dtype = (
             torch.float16 if self.cfg.half_precision_weights else torch.float32
@@ -75,21 +75,15 @@ class StableDiffusionDCGuidance(BaseObject):
             "cache_dir": self.cfg.cache_dir,
         }
 
-        # self.pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
-        #     self.cfg.ip2p_name_or_path, **pipe_kwargs
-        # ).to(self.device)
-        # print(self.cfg.ip2p_name_or_path)
-        self.pipe = StableDiffusionPipeline.from_pretrained(
+        self.pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
             self.cfg.ip2p_name_or_path, **pipe_kwargs
         ).to(self.device)
-
-        self.scheduler = DDPMScheduler.from_pretrained(
+        self.scheduler = DDIMScheduler.from_pretrained(
             self.cfg.ddim_scheduler_name_or_path,
             subfolder="scheduler",
             torch_dtype=self.weights_dtype,
             cache_dir=self.cfg.cache_dir,
         )
-        # self.scheduler = self.pipe.scheduler
         self.scheduler.set_timesteps(self.cfg.diffusion_steps)
 
         if self.cfg.enable_memory_efficient_attention:
@@ -135,16 +129,15 @@ class StableDiffusionDCGuidance(BaseObject):
         self.max_iteration = self.cfg.max_iteration
 
         # FreeU
-        # b1 = self.cfg.freeu_b1
-        # b2 = self.cfg.freeu_b2
-        # s1 = self.cfg.freeu_s1
-        # s2 = self.cfg.freeu_s2
+        b1 = self.cfg.freeu_b1
+        b2 = self.cfg.freeu_b2
+        s1 = self.cfg.freeu_s1
+        s2 = self.cfg.freeu_s2
 
-        # register_free_upblock2d_in(self.unet, b1, b2, s1, s2)
-        # register_free_crossattn_upblock2d_in(self.unet, b1, b2, s1, s2)
+        register_free_upblock2d_in(self.unet, b1, b2, s1, s2)
+        register_free_crossattn_upblock2d_in(self.unet, b1, b2, s1, s2)
 
-        threestudio.info(f"Loaded Stable Diffusion!")
-        print(self.min_step)
+        threestudio.info(f"Loaded InstructPix2Pix!")
 
     @torch.cuda.amp.autocast(enabled=False)
     def set_min_max_steps(self, min_step_percent=0.02, max_step_percent=0.98):
@@ -244,39 +237,61 @@ class StableDiffusionDCGuidance(BaseObject):
         src_latents: Float[Tensor, "B 4 DH DW"],
         tgt_text_embeddings: Float[Tensor, "BB 77 768"],
         src_text_embeddings: Float[Tensor, "BB 77 768"],
-        null_text_embeddings: Float[Tensor, "BB 77 768"],
+        image_cond_latents: Float[Tensor, "B 4 DH DW"],
         t: Int[Tensor, "B"],
         t_normalized: Int[Tensor, "B"] = None,
     ):
-        with torch.no_grad():
-            # noise = torch.randn_like(tgt_latents)  # TODO: use torch generator
-            noise = torch.empty_like(tgt_latents).normal_(generator=torch.Generator(device="cuda").manual_seed(t.item()))
-            
+        eps = dict()
+        noisy_latents = dict()
+        noise = torch.randn_like(tgt_latents)  # TODO: use torch generator
+
+        for latent, cond_text_embedding, name in zip(
+            [tgt_latents, src_latents], [tgt_text_embeddings, src_text_embeddings], ["target", "source"]
+        ):
             with torch.no_grad():
-                latents_noisy_tgt = self.scheduler.add_noise(tgt_latents, noise, t)
-                latents_noisy_src = self.scheduler.add_noise(src_latents, noise, t)
+            
+                # add noise
+                latents_noisy = self.scheduler.add_noise(latent, noise, t)
 
-                latent_model_input = torch.cat([latents_noisy_src, latents_noisy_tgt, latents_noisy_tgt, latents_noisy_tgt], dim=0)
-
-                text_embeddings = torch.cat([ null_text_embeddings, src_text_embeddings, tgt_text_embeddings, null_text_embeddings ], dim=0) # null, src, tgt, null
+                # pred noise
+                latent_model_input = torch.cat([latents_noisy] * 3)
+                latent_model_input = torch.cat(
+                    [latent_model_input, image_cond_latents], dim=1
+                )
 
                 noise_pred = self.forward_unet(
-                            latent_model_input, t, encoder_hidden_states=text_embeddings
-                        )
+                    latent_model_input, t, encoder_hidden_states=cond_text_embedding
+                )
 
-            noise_pred_src_null, noise_pred_tgt_source, noise_pred_tgt_target, noise_pred_tgt_null = noise_pred.chunk(4)
+            noise_pred_text, noise_pred_image, noise_pred_uncond = noise_pred.chunk(3)
+            
+            if name == "target":
+                noise_pred = (
+                    noise_pred_uncond
+                    + self.cfg.guidance_scale * (noise_pred_text - noise_pred_image)
+                    + self.cfg.condition_scale * (noise_pred_image - noise_pred_uncond)
+                )
+            else:
+                noise_pred = (
+                    noise_pred_uncond 
+                    + self.cfg.condition_scale * (noise_pred_image - noise_pred_uncond)
+                )
 
-            noise_pred_branch1 = noise_pred_tgt_source - noise_pred_src_null # 图片稳定变换
-            noise_pred_branch2 = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_source)  # 编辑变化
-            noise_pred_branch3 = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_null)  # 风格化
+            eps[name] = noise_pred
+            noisy_latents[name] = latents_noisy
 
-            grad_ours = noise_pred_branch1 * 2.0 + noise_pred_branch2  + noise_pred_branch3
+        if t_normalized is not None and self.cfg.use_dreamcatalyst:
+            # w = self.cfg.delta + self.cfg.gamma * (t_normalized ** (1/math.e))
+            # # grad = (self.cfg.psi * (math.exp(t_normalized))) * (eps["target"] - eps["source"]) + w * (tgt_latents - src_latents)
+            # grad = (self.cfg.chi * (math.exp(t_normalized))) * (tgt_latents - src_latents) + w * (eps["target"] - eps["source"])
 
-            noise_pred_branch4 = latents_noisy_tgt - latents_noisy_src  # img保持
-            grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * math.exp(t_normalized))
+            grad = (1.0* (eps["target"] - eps["source"]) + 0.075 * math.exp(t_normalized) * (noisy_latents["target"] - noisy_latents["source"]) ) 
 
-            # grad = grad_ours  
+        # # else:
+        # w = (1 - self.alphas[t]).view(-1, 1, 1, 1)  # 这个会限制梯度
+        # grad = w * (eps['target'] - eps['source'])
 
+        # grad =  (eps['target'] - eps['source'])  # 在Instruct里面不加，id约束类似img-scale，prompt-enhanment需要提高guidance_scale
         return grad
 
     def __call__(
@@ -315,18 +330,14 @@ class StableDiffusionDCGuidance(BaseObject):
 
         temp = torch.zeros(1).to(rgb.device)
         target_text_embeddings = target_prompt_utils.get_text_embeddings(temp, temp, temp, False)
-        # target_text_embeddings = torch.cat(
-        #     [target_text_embeddings, target_text_embeddings[-1:]], dim=0
-        # )  # [positive, negative, negative]
+        target_text_embeddings = torch.cat(
+            [target_text_embeddings, target_text_embeddings[-1:]], dim=0
+        )  # [positive, negative, negative]
 
         source_text_embeddings = source_prompt_utils.get_text_embeddings(temp, temp, temp, False)
-        # source_text_embeddings = torch.cat(
-        #     [source_text_embeddings, source_text_embeddings[-1:]], dim=0
-        # )  # [positive, negative, negative]
-        null_text_embeddings = target_text_embeddings[-1:]
-        target_text_embeddings = target_text_embeddings[:1]
-        source_text_embeddings = source_text_embeddings[:1]
-
+        source_text_embeddings = torch.cat(
+            [source_text_embeddings, source_text_embeddings[-1:]], dim=0
+        )  # [positive, negative, negative]
 
         if self.cfg.use_dreamcatalyst:
             timesteps = reversed(self.scheduler.timesteps)
@@ -360,20 +371,18 @@ class StableDiffusionDCGuidance(BaseObject):
             )
     
         self.iteration += 1
-        latent_iter = 80
 
         if self.cfg.use_dds:
             grad = self.compute_grad_dds(
                 target_latents, 
                 source_latents,
                 target_text_embeddings, 
-                source_text_embeddings,
-                null_text_embeddings,
+                source_text_embeddings, 
+                cond_latents, 
                 t,
                 t_noralized if self.cfg.use_dreamcatalyst else None
             )
             grad = torch.nan_to_num(grad)
-            
             if self.grad_clip_val is not None:
                 grad = grad.clamp(-self.grad_clip_val, self.grad_clip_val)
             target = (target_latents - grad).detach()
@@ -384,7 +393,6 @@ class StableDiffusionDCGuidance(BaseObject):
                 "min_step": self.min_step,
                 "max_step": self.max_step,
             }
-
         else:
             edit_latents = self.edit_latents(target_text_embeddings, target_latents, cond_latents, t)
             edit_images = self.decode_latents(edit_latents)

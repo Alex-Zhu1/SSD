@@ -5,7 +5,7 @@ import math
 import numpy as np
 import torch
 import torch.nn.functional as F
-from diffusers import DDIMScheduler, StableDiffusionInstructPix2PixPipeline, StableDiffusionPipeline, DDPMScheduler
+from diffusers import DDIMScheduler, StableDiffusionPipeline, DDPMScheduler
 from diffusers.utils.import_utils import is_xformers_available
 from tqdm import tqdm
 
@@ -17,7 +17,7 @@ from threestudio.utils.typing import *
 from threestudio.utils.free_lunch import register_free_upblock2d_in, register_free_crossattn_upblock2d_in
 
 
-@threestudio.register("stable-diffusion-dds-guidance")
+@threestudio.register("stable-diffusion-ssd-guidance")
 class StableDiffusionDCGuidance(BaseObject):
     @dataclass
     class Config(BaseObject.Config):
@@ -29,8 +29,11 @@ class StableDiffusionDCGuidance(BaseObject):
         enable_sequential_cpu_offload: bool = False
         enable_attention_slicing: bool = False
         enable_channels_last_format: bool = False
+
         guidance_scale: float = 7.5
-        condition_scale: float = 1.5
+        enhance_scale: float = 5.5
+        image_scale: float = 2.0
+
         grad_clip: Optional[
             Any
         ] = None  # field(default_factory=lambda: [0, 2.0, 8.0, 1000])
@@ -43,10 +46,6 @@ class StableDiffusionDCGuidance(BaseObject):
 
         diffusion_steps: int = 1000 # 20
         max_iteration: int = 1500
-
-        chi: float = 0.075
-        delta: float  = 0.2
-        gamma: float = 0.8
 
         use_dds: bool = True
         use_dreamcatalyst: bool = False
@@ -75,10 +74,6 @@ class StableDiffusionDCGuidance(BaseObject):
             "cache_dir": self.cfg.cache_dir,
         }
 
-        # self.pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
-        #     self.cfg.ip2p_name_or_path, **pipe_kwargs
-        # ).to(self.device)
-        # print(self.cfg.ip2p_name_or_path)
         self.pipe = StableDiffusionPipeline.from_pretrained(
             self.cfg.ip2p_name_or_path, **pipe_kwargs
         ).to(self.device)
@@ -88,7 +83,7 @@ class StableDiffusionDCGuidance(BaseObject):
             subfolder="scheduler",
             torch_dtype=self.weights_dtype,
             cache_dir=self.cfg.cache_dir,
-        )
+        )  # ddim是稳健的，ddpm有些case获取更好结果
         # self.scheduler = self.pipe.scheduler
         self.scheduler.set_timesteps(self.cfg.diffusion_steps)
 
@@ -252,11 +247,10 @@ class StableDiffusionDCGuidance(BaseObject):
         # noise = torch.empty_like(tgt_latents).normal_(generator=torch.Generator(device="cuda").manual_seed(t.item()))
         
         with torch.no_grad():
-
             latents_noisy_tgt = self.scheduler.add_noise(tgt_latents, noise, t)
-            # latents_noisy_src = self.scheduler.add_noise(src_latents, noise, t)
+            latents_noisy_src = self.scheduler.add_noise(src_latents, noise, t)
 
-            latent_model_input = torch.cat([latents_noisy_tgt, latents_noisy_tgt, latents_noisy_tgt, latents_noisy_tgt], dim=0)
+            latent_model_input = torch.cat([latents_noisy_src, latents_noisy_tgt, latents_noisy_tgt, latents_noisy_tgt], dim=0)
 
             text_embeddings = torch.cat([ null_text_embeddings, src_text_embeddings, null_text_embeddings,tgt_text_embeddings], dim=0) # null, src, null, tgt
 
@@ -264,14 +258,30 @@ class StableDiffusionDCGuidance(BaseObject):
                         latent_model_input, t, encoder_hidden_states=text_embeddings
                     )
 
-            noise_pred_src_null, noise_pred_src_source, noise_pred_tgt_null, noise_pred_tgt_target = noise_pred.chunk(4)
-            
-            source = 2.5 * (noise_pred_src_source - noise_pred_src_null)
-            target = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_null)
+            noise_pred_src_null, noise_pred_tgt_source, noise_pred_tgt_null, noise_pred_tgt_target = noise_pred.chunk(4)
 
-            grad_dds = target - source
+            grad_ours = (
+                self.cfg.image_scale * (noise_pred_tgt_source - noise_pred_src_null) * 0.5 +  # 稳定变换
+                self.cfg.guidance_scale * (noise_pred_tgt_target - noise_pred_tgt_source) * 0.5 +  # 编辑变化
+                self.cfg.enhance_scale * (noise_pred_tgt_target - noise_pred_tgt_null)  # 风格化
+            )
 
-        return grad_dds
+            # noise_pred_branch1 = noise_pred_tgt_source - noise_pred_src_null # 图片稳定变换
+            # noise_pred_branch2 = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_source)  # 编辑变化
+            # noise_pred_branch3 = 5.5 * (noise_pred_tgt_target - noise_pred_tgt_null)  # 风格化
+            # grad_ours = noise_pred_branch1 * 2.0 + noise_pred_branch2  + noise_pred_branch3
+
+            noise_pred_branch4 = (latents_noisy_tgt - latents_noisy_src)  # img保持
+
+            # grad = (grad_ours * (t_normalized ** (1/math.e)) * 0.75 + 0.075 * noise_pred_branch4 * math.exp(t_normalized))  # 编辑0
+
+            grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * math.exp(t_normalized) * 1.0 )
+            # grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * (t_normalized) * 1.0 )
+            # grad = grad_ours
+
+        # grad = grad_ours  
+
+        return grad
 
     def __call__(
         self,
@@ -354,7 +364,6 @@ class StableDiffusionDCGuidance(BaseObject):
             )
     
         self.iteration += 1
-        latent_iter = 80
 
         if self.cfg.use_dds:
             grad = self.compute_grad_dds(
