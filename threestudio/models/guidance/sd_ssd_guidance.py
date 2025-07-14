@@ -266,12 +266,12 @@ class StableDiffusionDCGuidance(BaseObject):
                 self.cfg.enhance_scale * (noise_pred_tgt_target - noise_pred_tgt_null)  # enhancing target prompt
             )
 
-            # noise_pred_branch1 = noise_pred_tgt_source - noise_pred_src_null # 图片稳定变换
-            # noise_pred_branch2 = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_source)  # 编辑变化
-            # noise_pred_branch3 = 5.5 * (noise_pred_tgt_target - noise_pred_tgt_null)  # 风格化
+            # noise_pred_branch1 = noise_pred_tgt_source - noise_pred_src_null # 
+            # noise_pred_branch2 = 7.5 * (noise_pred_tgt_target - noise_pred_tgt_source) 
+            # noise_pred_branch3 = 5.5 * (noise_pred_tgt_target - noise_pred_tgt_null)  
             # grad_ours = noise_pred_branch1 * 2.0 + noise_pred_branch2  + noise_pred_branch3
 
-            noise_pred_branch4 = (latents_noisy_tgt - latents_noisy_src)  # img保持
+            noise_pred_branch4 = (latents_noisy_tgt - latents_noisy_src)  # regularization term
 
             # grad = (grad_ours * (t_normalized ** (1/math.e)) * 0.75 + 0.075 * noise_pred_branch4 * math.exp(t_normalized))  # weight from DreamCatalyst
 
