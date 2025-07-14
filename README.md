@@ -71,7 +71,7 @@ We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.ya
 
 2. Some prompts may not work well with **SD2.1**. In such cases, you can try using **IP2P** instead.
 
-3. We provide the evaluation metric code.
+3. We provide test [data](https://drive.google.com/file/d/1q5ReFKafdojNrRKHGroeYT_qO7LREoLn/view?usp=drive_link) and the evaluation metric code.
 
 ## Command Line
 
