@@ -10,24 +10,6 @@
 
 </div>
 
-
-<!-- ## Demo Videos
-<details open>
-  <summary>Swift and controllable 3D editing with only 2-7 minutes.</summary>
-
-https://github.com/buaacyw/GaussianEditor/assets/52091468/10740174-3208-4408-b519-23f58604339e
-
-https://github.com/buaacyw/GaussianEditor/assets/52091468/44797174-0242-4c82-a383-2d7b3d4fd693
-
-
-https://github.com/buaacyw/GaussianEditor/assets/52091468/18dd3ef2-4066-428a-918d-c4fe673d0af8
-</details> -->
-
-<!-- ## Release
-- [12/5] Docker support. Great thanks to [jhuangBU](https://github.com/jhuangBU). For windows, you can try [this guide](https://github.com/buaacyw/GaussianEditor/issues/9) and [this guide](https://github.com/buaacyw/GaussianEditor/issues/14).
-- [11/29] Release segmentation confidence score scaler. You can now scale the threshold of semantic tracing masks. 
-- [11/27] 🔥 We released **GaussianEditor: Swift and Controllable 3D Editing with Gaussian Splatting** and beta version of GaussianEditing WebUI. -->
-
 ## Contents
 <!-- - [Demo Videos](#demo-videos)
 - [Release](#release) -->
@@ -38,8 +20,11 @@ https://github.com/buaacyw/GaussianEditor/assets/52091468/18dd3ef2-4066-428a-918
 - [Acknowledgement](#acknowledgement)
 
 ## Installation
+
 Our environment was tested on Ubuntu 22, CUDA 11.7 with 3090.
-```
+
+```bash
+
 conda create -n ssd python=3.8 -y 
 conda activate ssd
 
@@ -62,8 +47,8 @@ pip install mediapipe
 pip install diffusers==0.27.2
 pip install -r requirements_all.txt
 ```
-We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.yaml) file to help you verify.
 
+We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.yaml) file to help you verify.
 
 ## Tips
 
@@ -71,11 +56,15 @@ We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.ya
 
 2. Some prompts may not work well with **SD2.1**. In such cases, you can try using **IP2P** instead.
 
-3. We provide test [data](https://drive.google.com/file/d/1q5ReFKafdojNrRKHGroeYT_qO7LREoLn/view?usp=drive_link) and the evaluation metric code.
+3. Most configurations are adapted from [GaussianEditor](https://github.com/buaacyw/GaussianEditor).  
+Our pipeline relies on [three](https://github.com/Alex-Zhu1/SSD/blob/25316a047a638291cde1afbf427e750a8e23651d/configs/edit-sd-ours.yaml#L56) key configuration parameters: `cross-prompt`, `cross-trajectory`, and `prompt-enhancement`.  
+If the default values — **cross-trajectory: 2.0** and **enhance_scale: 5.5** — lead to suboptimal results, users can try adjusting the weights.
+
+4. We provide test [data](https://drive.google.com/file/d/1q5ReFKafdojNrRKHGroeYT_qO7LREoLn/view?usp=drive_link) and the evaluation metric code.
 
 ## Command Line
 
-
+Please try our demo by running [script/face.sh](https://github.com/Alex-Zhu1/SSD/blob/main/script/face.sh).
 
 ## Acknowledgement
 
@@ -85,3 +74,4 @@ We also refer to the following projects:
 
 - [Gaussian Splatting](https://github.com/graphdeco-inria/gaussian-splatting)  
 - [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix)
+- [DreamCatalyst](https://github.com/kaist-cvml/DreamCatalyst)

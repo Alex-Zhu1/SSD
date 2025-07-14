@@ -1,4 +1,4 @@
-name: "edit-ours-sd-ab-bear-artifact"
+name: "edit-ours-sd-"
 tag: "${rmspace:${system.prompt_processor.prompt},_}"
 exp_root_dir: "outputs"
 seed: 0
@@ -53,12 +53,12 @@ system:
   second_guidance:
     min_step_percent: 0.02
     max_step_percent: 0.98
-    guidance_scale: 7.5
-    enhance_scale: 7.5
-    image_scale: 2.0
+    guidance_scale: 7.5   # CFG scale
+    enhance_scale: 5.5    # prompt enhancement scale; 5.5 or 7.5
+    image_scale: 2.0      # cross-trajectory scale
     diffusion_steps: 1000
     use_dds: true
-    use_dreamcatalyst: true
+    use_ssd: true
 
   loggers:
     wandb:

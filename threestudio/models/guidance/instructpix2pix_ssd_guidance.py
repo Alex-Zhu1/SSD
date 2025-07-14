@@ -49,7 +49,7 @@ class InstructPix2PixDCGuidance(BaseObject):
         gamma: float = 0.8
 
         use_dds: bool = True
-        use_dreamcatalyst: bool = False
+        use_ssd: bool = False
 
         # FreeU
         freeu_b1: float=1.1
@@ -272,26 +272,20 @@ class InstructPix2PixDCGuidance(BaseObject):
                     + self.cfg.condition_scale * (noise_pred_image - noise_pred_uncond)
                 )
             else:
-                noise_pred = (
-                    noise_pred_uncond 
-                    + self.cfg.condition_scale * (noise_pred_image - noise_pred_uncond)
-                )
+                noise_pred = noise_pred_uncond # Our equation don't need to condition on source image, 
+
+                # noise_pred = (
+                #     noise_pred_uncond 
+                #     + self.cfg.condition_scale * (noise_pred_image - noise_pred_uncond)
+                # )   
 
             eps[name] = noise_pred
             noisy_latents[name] = latents_noisy
 
-        if t_normalized is not None and self.cfg.use_dreamcatalyst:
-            # w = self.cfg.delta + self.cfg.gamma * (t_normalized ** (1/math.e))
-            # # grad = (self.cfg.psi * (math.exp(t_normalized))) * (eps["target"] - eps["source"]) + w * (tgt_latents - src_latents)
-            # grad = (self.cfg.chi * (math.exp(t_normalized))) * (tgt_latents - src_latents) + w * (eps["target"] - eps["source"])
+        if t_normalized is not None and self.cfg.use_ssd:
 
             grad = (1.0* (eps["target"] - eps["source"]) + 0.075 * math.exp(t_normalized) * (noisy_latents["target"] - noisy_latents["source"]) ) 
 
-        # # else:
-        # w = (1 - self.alphas[t]).view(-1, 1, 1, 1)  # 这个会限制梯度
-        # grad = w * (eps['target'] - eps['source'])
-
-        # grad =  (eps['target'] - eps['source'])  # 在Instruct里面不加，id约束类似img-scale，prompt-enhanment需要提高guidance_scale
         return grad
 
     def __call__(
@@ -339,7 +333,7 @@ class InstructPix2PixDCGuidance(BaseObject):
             [source_text_embeddings, source_text_embeddings[-1:]], dim=0
         )  # [positive, negative, negative]
 
-        if self.cfg.use_dreamcatalyst:
+        if self.cfg.use_ssd:
             timesteps = reversed(self.scheduler.timesteps)
 
             self.min_step = 1 if self.cfg.min_step_percent <= 0 else int(len(timesteps) * self.cfg.min_step_percent)
@@ -380,7 +374,7 @@ class InstructPix2PixDCGuidance(BaseObject):
                 source_text_embeddings, 
                 cond_latents, 
                 t,
-                t_noralized if self.cfg.use_dreamcatalyst else None
+                t_noralized if self.cfg.use_ssd else None
             )
             grad = torch.nan_to_num(grad)
             if self.grad_clip_val is not None:
@@ -407,7 +401,7 @@ class InstructPix2PixDCGuidance(BaseObject):
         if self.cfg.grad_clip is not None:
             self.grad_clip_val = C(self.cfg.grad_clip, epoch, global_step)
 
-        if not self.cfg.use_dreamcatalyst:
+        if not self.cfg.use_ssd:
             self.set_min_max_steps(
                 min_step_percent=C(self.cfg.min_step_percent, epoch, global_step),
                 max_step_percent=C(self.cfg.max_step_percent, epoch, global_step),

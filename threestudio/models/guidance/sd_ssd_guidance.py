@@ -48,7 +48,7 @@ class StableDiffusionDCGuidance(BaseObject):
         max_iteration: int = 1500
 
         use_dds: bool = True
-        use_dreamcatalyst: bool = False
+        use_ssd: bool = False
 
         # FreeU
         freeu_b1: float=1.1
@@ -261,9 +261,9 @@ class StableDiffusionDCGuidance(BaseObject):
             noise_pred_src_null, noise_pred_tgt_source, noise_pred_tgt_null, noise_pred_tgt_target = noise_pred.chunk(4)
 
             grad_ours = (
-                self.cfg.image_scale * (noise_pred_tgt_source - noise_pred_src_null) * 0.5 +  # 稳定变换
-                self.cfg.guidance_scale * (noise_pred_tgt_target - noise_pred_tgt_source) * 0.5 +  # 编辑变化
-                self.cfg.enhance_scale * (noise_pred_tgt_target - noise_pred_tgt_null)  # 风格化
+                self.cfg.image_scale * (noise_pred_tgt_source - noise_pred_src_null) * 0.5 +  # preserving source content
+                self.cfg.guidance_scale * (noise_pred_tgt_target - noise_pred_tgt_source) * 0.5 +  # target prompt
+                self.cfg.enhance_scale * (noise_pred_tgt_target - noise_pred_tgt_null)  # enhancing target prompt
             )
 
             # noise_pred_branch1 = noise_pred_tgt_source - noise_pred_src_null # 图片稳定变换
@@ -273,9 +273,11 @@ class StableDiffusionDCGuidance(BaseObject):
 
             noise_pred_branch4 = (latents_noisy_tgt - latents_noisy_src)  # img保持
 
-            # grad = (grad_ours * (t_normalized ** (1/math.e)) * 0.75 + 0.075 * noise_pred_branch4 * math.exp(t_normalized))  # 编辑0
+            # grad = (grad_ours * (t_normalized ** (1/math.e)) * 0.75 + 0.075 * noise_pred_branch4 * math.exp(t_normalized))  # weight from DreamCatalyst
 
-            grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * math.exp(t_normalized) * 1.0 )
+            grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * math.exp(t_normalized) * 1.0 ) # most cases
+
+            # other options
             # grad = (grad_ours * 1.0 + 0.075 * noise_pred_branch4 * (t_normalized) * 1.0 )
             # grad = grad_ours
 
@@ -332,7 +334,7 @@ class StableDiffusionDCGuidance(BaseObject):
         source_text_embeddings = source_text_embeddings[:1]
 
 
-        if self.cfg.use_dreamcatalyst:
+        if self.cfg.use_ssd:
             timesteps = reversed(self.scheduler.timesteps)
 
             self.min_step = 1 if self.cfg.min_step_percent <= 0 else int(len(timesteps) * self.cfg.min_step_percent)
@@ -373,7 +375,7 @@ class StableDiffusionDCGuidance(BaseObject):
                 source_text_embeddings,
                 null_text_embeddings,
                 t,
-                t_noralized if self.cfg.use_dreamcatalyst else None
+                t_noralized if self.cfg.use_ssd else None
             )
             grad = torch.nan_to_num(grad)
             
@@ -402,7 +404,7 @@ class StableDiffusionDCGuidance(BaseObject):
         if self.cfg.grad_clip is not None:
             self.grad_clip_val = C(self.cfg.grad_clip, epoch, global_step)
 
-        if not self.cfg.use_dreamcatalyst:
+        if not self.cfg.use_ssd:
             self.set_min_max_steps(
                 min_step_percent=C(self.cfg.min_step_percent, epoch, global_step),
                 max_step_percent=C(self.cfg.max_step_percent, epoch, global_step),
