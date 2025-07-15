@@ -49,7 +49,7 @@ pip install diffusers==0.27.2
 pip install -r requirements_all.txt
 ```
 
-We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.yaml) file to help you verify.
+We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/blob/main/ssd.yaml) file to help you verify.
 
 ## Tips
 
