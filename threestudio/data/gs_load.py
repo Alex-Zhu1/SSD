@@ -364,7 +364,7 @@ class GS_load(pl.LightningDataModule):
         super().__init__()
         self.cfg = parse_structured(GSLoadDataModuleConfig, cfg)
 
-        self.use_original_resolution = True
+        self.use_original_resolution = False
         if self.use_original_resolution:
             # bear
             # self.cfg.height =  512
