@@ -17,6 +17,7 @@
 - [Installation](#installation)
 - [Tips](#tips)
 - [Command Line](#command-line)
+- [Citation](#citation)
 - [Acknowledgement](#acknowledgement)
 
 ## Installation
@@ -57,7 +58,7 @@ We provide an [environment.yaml](https://github.com/Alex-Zhu1/SSD/environment.ya
 2. Some prompts may not work well with **SD2.1**. In such cases, you can try using **IP2P** instead.
 
 3. Most configurations are adapted from [GaussianEditor](https://github.com/buaacyw/GaussianEditor).  
-Our pipeline relies on [three](https://github.com/Alex-Zhu1/SSD/blob/25316a047a638291cde1afbf427e750a8e23651d/configs/edit-sd-ours.yaml#L56) key configuration parameters: `cross-prompt`, `cross-trajectory`, and `prompt-enhancement`.  
+Our pipeline relies on [three](https://github.com/Alex-Zhu1/SSD/blob/25316a047a638291cde1afbf427e750a8e23651d/configs/edit-sd-ours.yaml#L56) key configuration: `cross-prompt`, `cross-trajectory`, and `prompt-enhancement`.  
 If the default values — **cross-trajectory: 2.0** and **enhance_scale: 5.5** — lead to suboptimal results, users can try adjusting the weights.
 
 4. We provide test [data](https://drive.google.com/file/d/1q5ReFKafdojNrRKHGroeYT_qO7LREoLn/view?usp=drive_link) and the evaluation metric code.
@@ -65,6 +66,22 @@ If the default values — **cross-trajectory: 2.0** and **enhance_scale: 5.5** �
 ## Command Line
 
 Please try our demo by running [script/face.sh](https://github.com/Alex-Zhu1/SSD/blob/main/script/face.sh).
+
+## Citation
+
+If you find our work helpful in your project, please cite:
+
+```BiBTeX
+@misc{zhu2025stablescoredistillation,
+      title={Stable Score Distillation}, 
+      author={Haiming Zhu and Yangyang Xu and Chenshu Xu and Tingrui Shen and Wenxi Liu and Yong Du and Jun Yu and Shengfeng He},
+      year={2025},
+      eprint={2507.09168},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2507.09168}, 
+}
+```
 
 ## Acknowledgement
 
