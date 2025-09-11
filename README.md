@@ -9,7 +9,7 @@
 <a href='http://arxiv.org/abs/2507.09168'><img src='https://img.shields.io/badge/arXiv-2311.14521-b31b1b.svg'></a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 Formulating 2D image and 3D scene editing within diffusion models from the perspective of the score.
-<img src='https://github.com/Alex-Zhu1/SSD/assert/teaser.png'></a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src='https://github.com/Alex-Zhu1/SSD/blob/main/assert/teaser.png'></a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
 </div>
 
