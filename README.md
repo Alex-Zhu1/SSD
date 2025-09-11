@@ -8,6 +8,8 @@
 
 <a href='http://arxiv.org/abs/2507.09168'><img src='https://img.shields.io/badge/arXiv-2311.14521-b31b1b.svg'></a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 
+In diffusion models, construct the editing formulation for 2D images and 3D scenes from the perspective of the score.
+
 </div>
 
 ## Contents
