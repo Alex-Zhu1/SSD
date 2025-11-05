@@ -75,14 +75,13 @@ Please try our demo by running [script/face.sh](https://github.com/Alex-Zhu1/SSD
 If you find our work helpful in your project, please cite:
 
 ```BiBTeX
-@misc{zhu2025stablescoredistillation,
-      title={Stable Score Distillation}, 
-      author={Haiming Zhu and Yangyang Xu and Chenshu Xu and Tingrui Shen and Wenxi Liu and Yong Du and Jun Yu and Shengfeng He},
-      year={2025},
-      eprint={2507.09168},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2507.09168}, 
+@InProceedings{Zhu_2025_ICCV,
+    author    = {Zhu, Haiming and Xu, Yangyang and Xu, Chenshu and Shen, Tingrui and Liu, Wenxi and Du, Yong and Yu, Jun and He, Shengfeng},
+    title     = {Stable Score Distillation},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2025},
+    pages     = {16597-16606}
 }
 ```
 
